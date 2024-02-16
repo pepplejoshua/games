@@ -1,0 +1,2 @@
+# snake with raylib [2024/02/18 11:11am]
+I saw the original source code on [Twitter](https://x.com/raysan5/status/1757357258738934082?s=20) and I wanted to write it out myself to understand it, and then rewrite it my own way. When I last wrote a snake game (2017 - 2018), it actually would `cout` the entire game state every frame (and I could see see it refresh on each redraw of the board). I did not like that. With raylib, I don't have to worry about this. Very nice.
