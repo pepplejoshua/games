@@ -1,4 +1,4 @@
-#include "/Users/iwarilama/raylib/include/raylib.h"
+#include "../lib/raylib.h"
 
 #define TILE_SIZE 16
 #define ROWS 30
@@ -13,14 +13,16 @@ int main() {
   foodPos[0] = GetRandomValue(0, ROWS - 1);
   foodPos[1] = GetRandomValue(0, COLS - 1);
   snakePos[0] = (int)ROWS / 2, snakePos[1] = (int)COLS / 2;
-  SetTargetFPS(2);
+  SetTargetFPS(7);
   while (!WindowShouldClose()) {
     if (gameOver == 0) {
       snakePos[0] += (snakeDir == 0) ? 1 : ((snakeDir == 1) ? -1 : 0);
       snakePos[1] += (snakeDir == 2) ? 1 : ((snakeDir == 3) ? -1 : 0);
+      // check if the snake has collided with itself due to its new position
       if (snakePartTime[snakePos[0]][snakePos[1]] > 0)
         gameOver = 1;
 
+      
       snakePartTime[snakePos[0]][snakePos[1]] = snakeLength;
       for (short i = 0; i < ROWS; i++)
         for (int j = 0; j < COLS; j++)
