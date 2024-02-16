@@ -22,7 +22,6 @@ int main() {
       if (snakePartTime[snakePos[0]][snakePos[1]] > 0)
         gameOver = 1;
 
-      
       snakePartTime[snakePos[0]][snakePos[1]] = snakeLength;
       for (short i = 0; i < ROWS; i++)
         for (int j = 0; j < COLS; j++)
