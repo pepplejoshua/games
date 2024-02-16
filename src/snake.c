@@ -13,27 +13,55 @@ int main() {
   foodPos[0] = GetRandomValue(0, ROWS - 1);
   foodPos[1] = GetRandomValue(0, COLS - 1);
   snakePos[0] = (int)ROWS / 2, snakePos[1] = (int)COLS / 2;
-  SetTargetFPS(7);
+  SetTargetFPS(8);
   while (!WindowShouldClose()) {
     if (gameOver == 0) {
       snakePos[0] += (snakeDir == 0) ? 1 : ((snakeDir == 1) ? -1 : 0);
       snakePos[1] += (snakeDir == 2) ? 1 : ((snakeDir == 3) ? -1 : 0);
       // check if the snake has collided with itself due to its new position
-      if (snakePartTime[snakePos[0]][snakePos[1]] > 0)
+      if (snakePartTime[snakePos[0]][snakePos[1]] > 0) {
         gameOver = 1;
+        continue;
+      }
 
+      if ((snakePos[0] < 0) || (snakePos[1] < 0) || (snakePos[0] >= ROWS) ||
+        (snakePos[1] >= COLS)) {
+          gameOver = 1;
+          continue;
+        }
+      
       snakePartTime[snakePos[0]][snakePos[1]] = snakeLength;
       for (short i = 0; i < ROWS; i++)
         for (int j = 0; j < COLS; j++)
           snakePartTime[i][j] -= (snakePartTime[i][j] > 0) ? 1 : 0;
 
-      snakeDir = IsKeyDown(KEY_LEFT)
+      short nSnakeDir = IsKeyDown(KEY_LEFT)
                      ? 1
                      : (IsKeyDown(KEY_RIGHT)
                             ? 0
                             : (IsKeyDown(KEY_UP)
                                    ? 3
                                    : (IsKeyDown(KEY_DOWN) ? 2 : snakeDir)));
+      // make sure the user doesn't make the snake go in the opposite direction
+      switch (nSnakeDir) {
+        case 0:
+          if (snakeDir != 1)
+            snakeDir = nSnakeDir;
+          break;
+        case 1:
+          if (snakeDir != 0)
+            snakeDir = nSnakeDir;
+          break;
+        case 2:
+          if (snakeDir != 3)
+            snakeDir = nSnakeDir;
+          break;
+        case 3:
+          if (snakeDir != 2)
+            snakeDir = nSnakeDir;
+          break;  
+      }
+    
       if ((snakePos[0] < 0) || (snakePos[1] < 0) || (snakePos[0] >= ROWS) ||
           (snakePos[1] >= COLS))
         gameOver = 1;
@@ -48,7 +76,7 @@ int main() {
 
     BeginDrawing();
     {
-      ClearBackground(RAYWHITE);
+      ClearBackground(DARKGRAY);
       for (int i = 0; i < GetScreenWidth() / TILE_SIZE + 1; i++)
         DrawLineV((Vector2){TILE_SIZE * i, 0},
                   (Vector2){TILE_SIZE * i, GetScreenHeight()}, LIGHTGRAY);
@@ -67,11 +95,11 @@ int main() {
                             GREEN);
 
         DrawText(TextFormat("SCORE: %i", score), TILE_SIZE, TILE_SIZE - 2, 20,
-                 BLACK);
+                 RAYWHITE);
       } else
-        DrawText("YOU LOST!",
-                 GetScreenWidth() / 2 - (MeasureText("YOU LOST!", 40)),
-                 COLS * TILE_SIZE / 4, 40, RED);
+        DrawText("RIP BOZO!",
+                 GetScreenWidth() / 2 - (MeasureText("RIP BOZO !", 40) / 2),
+                 COLS * TILE_SIZE / 3, 40, RED);
     }
     EndDrawing();
   }
