@@ -28,6 +28,38 @@ void buffer_clear(Buffer *buf, u32 color) {
   }
 }
 
+void validate_shader(GLuint shader, const char *file = 0) {
+  static const unsigned int BUFFER_SIZE = 512;
+  char buffer[BUFFER_SIZE];
+  GLsizei length = 0;
+
+  glGetShaderInfoLog(shader, BUFFER_SIZE, &length, buffer);
+
+  if (length > 0) {
+    printf("Shader %d(%s) compile error: %s\n", shader, (file ? file : ""),
+           buffer);
+  }
+}
+
+bool validate_program(GLuint program) {
+  static const unsigned int BUFFER_SIZE = 512;
+  char buffer[BUFFER_SIZE];
+  GLsizei length = 0;
+
+  glGetProgramInfoLog(program, BUFFER_SIZE, &length, buffer);
+
+  if (length > 0) {
+    printf("Program %d link error: %s\n", program, buffer);
+    return false;
+  }
+
+  return true;
+}
+
+const size_t BUFFER_WIDTH = 224;
+const size_t BUFFER_HEIGHT = 256;
+const size_t BUFFER_SIZE = BUFFER_WIDTH * BUFFER_HEIGHT;
+
 int main() {
   GLFWwindow *window;
 
@@ -65,8 +97,115 @@ int main() {
   glGetIntegerv(GL_MINOR_VERSION, &glVersion[1]);
   printf("Using OpenGL: %d.%d\n", glVersion[0], glVersion[1]);
 
-  // loop until the window should close
   glClearColor(1.0, 0.0, 0.0, 1.0);
+
+  // create and clear buffer
+  Buffer buf = {.width = BUFFER_WIDTH,
+                .height = BUFFER_HEIGHT,
+                .data = new u32[BUFFER_SIZE]};
+  buffer_clear(&buf, 0);
+
+  // img data is transferred to the gpu using textures
+  // a texture (in terms of vao) is an object holding img data,
+  // and other info about formatting of the data
+
+  // first we create the buffer to hold the texture
+  GLuint buf_texture;
+  glGenTextures(1, &buf_texture);
+
+  // then we specify img format and std parameters about the
+  // behavior of the sampling of the texture
+  glBindTexture(GL_TEXTURE_2D, buf_texture);
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, buf.width, buf.height, 0, GL_RGBA,
+               GL_UNSIGNED_INT_8_8_8_8, buf.data);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  // create VAO to track all appropriate vertex data for rendering
+  GLuint fullscreen_triangle_vao;
+  glGenVertexArrays(1, &fullscreen_triangle_vao);
+
+  const char *vertex_shader =
+      "\n"
+      "#version 330\n"
+      "\n"
+      "noperspective out vec2 TexCoord;\n"
+      "\n"
+      "void main(void) {\n"
+      "\n"
+      "    TexCoord.x = (gl_VertexID == 2) ? 2.0 : 0.0;\n"
+      "    TexCoord.y = (gl_VertexID == 1) ? 2.0 : 0.0;\n"
+      "    \n"
+      "    gl_Position = vec4(2.0 * TexCoord - 1.0, 0.0, 1.0);\n"
+      "}\n";
+
+  const char *fragment_shader =
+      "\n"
+      "#version 330\n"
+      "\n"
+      "uniform sampler2D buffer;\n"
+      "noperspective in vec2 TexCoord;\n"
+      "\n"
+      "out vec3 outColor;\n"
+      "\n"
+      "void main(void) {\n"
+      "\n"
+      "    outColor = texture(buffer, TexCoord).rgb;\n"
+      "}\n";
+
+  // compile shader programs to gpu friendly format
+  GLuint shader_id = glCreateProgram();
+
+  // compile vertex shader
+  {
+    GLuint shader_vp = glCreateShader(GL_VERTEX_SHADER);
+
+    glShaderSource(shader_vp, 1, &vertex_shader, 0);
+    glCompileShader(shader_vp);
+    validate_shader(shader_vp, vertex_shader);
+    glAttachShader(shader_id, shader_vp);
+
+    glDeleteShader(shader_vp);
+  }
+
+  // compile fragment shader
+  {
+    GLuint shader_fp = glCreateShader(GL_FRAGMENT_SHADER);
+
+    glShaderSource(shader_fp, 1, &fragment_shader, 0);
+    glCompileShader(shader_fp);
+    validate_shader(shader_fp, fragment_shader);
+    glAttachShader(shader_id, shader_fp);
+
+    glDeleteShader(shader_fp);
+  }
+
+  glLinkProgram(shader_id);
+
+  if (!validate_program(shader_id)) {
+    fprintf(stderr, "Error while validating shader.\n");
+    glfwTerminate();
+    glDeleteVertexArrays(1, &fullscreen_triangle_vao);
+    delete[] buf.data;
+    return -1;
+  }
+
+  // attach the texture to the sampler2D buffer variable in the fragment shader
+  GLint frag_buf_location = glGetUniformLocation(shader_id, "buffer");
+  glUniform1i(frag_buf_location, 0);
+
+  // open gl settings
+  glDisable(GL_DEPTH_TEST);
+  glActiveTexture(GL_TEXTURE0);
+
+  glBindVertexArray(fullscreen_triangle_vao);
+
+  // loop until the window should close
+  u32 clear_color = rgb_to_u32(0, 128, 0);
+
   while (!glfwWindowShouldClose(window)) {
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -75,6 +214,12 @@ int main() {
   }
 
   // clean up
+  glfwDestroyWindow(window);
   glfwTerminate();
+
+  glDeleteVertexArrays(1, &fullscreen_triangle_vao);
+
+  delete[] buf.data;
+
   return 0;
 }
