@@ -2,4 +2,5 @@
 I saw the original source code on [Twitter](https://x.com/raysan5/status/1757357258738934082?s=20) and I wanted to write it out myself to understand it, and then rewrite it my own way. When I last wrote a snake game (2017 - 2018), it actually would `cout` the entire game state every frame (and I could see see it refresh on each redraw of the board). I did not like that. With raylib, I don't have to worry about this. Very nice.
 
 
-## 
+## required installations
+- `raylib` from source. Go to the GitHub repo for `raylib`, find the releases and look for `Source Code (zip)`. Download and extract the zip file. Inside, there will be `src` folder which has a Makefile. The object of the compilation is the libraylib.a, which will be used to compile the snake game alongside `raylib.h ` and `raymath.h`. You can run `make` here and it will create the `libraylib.a` file. You can then copy this file to the `lib` folder in the root of the snake folder (to be alongside `raylib.h` and `raymath.h`). Then you can run the `make` command in the snake folder to compile the game. You can then run the game with `./bin/snake`.
