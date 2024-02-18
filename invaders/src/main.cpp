@@ -1,10 +1,4 @@
-#ifdef __IWARILAMA_S_MAC_MINI__
-#include "/opt/homebrew/Cellar/glew/2.2.0_1/include/GL/glew.h"
-#elif __IWARILAMA_S_MACBOOK__
-#include "/usr/local/Cellar/glew/2.2.0_1/include/GL/glew.h"
-#else
 #include "../lib/glew.h"
-#endif
 
 #include "../lib/glfw3.h"
 #include <cstdint>
