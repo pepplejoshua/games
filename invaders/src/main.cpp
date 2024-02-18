@@ -1,6 +1,7 @@
 #include "../lib/glew.h"
 
 #include "../lib/glfw3.h"
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 
@@ -18,6 +19,13 @@ struct Buffer {
   u32 *data;
 };
 
+// this struct will hold a bitmapped sprite which will be drawn to screen
+// with a specified color. each pixel is 8 bits wide
+struct Sprite {
+  size_t width, height;
+  u8 *data;
+};
+
 u32 rgb_to_u32(u8 r, u8 g, u8 b) {
   return (r << 24) | (g << 16) | (b << 8) | 255;
 }
@@ -25,6 +33,20 @@ u32 rgb_to_u32(u8 r, u8 g, u8 b) {
 void buffer_clear(Buffer *buf, u32 color) {
   for (size_t i = 0; i < buf->width * buf->height; ++i) {
     buf->data[i] = color;
+  }
+}
+
+void buffer_draw_sprite(Buffer *buf, const Sprite &sprite, size_t x, size_t y,
+                        u32 color) {
+  for (size_t xi = 0; xi < sprite.width; ++xi) {
+    for (size_t yi = 0; yi < sprite.height; ++yi) {
+      size_t sy = sprite.height - 1 + y - yi;
+      size_t sx = x + xi;
+      if (sprite.data[yi * sprite.width + xi] && sy < buf->height &&
+          sx < buf->width) {
+        buf->data[sy * buf->width + sx] = color;
+      }
+    }
   }
 }
 
@@ -61,6 +83,8 @@ const size_t BUFFER_HEIGHT = 256;
 const size_t BUFFER_SIZE = BUFFER_WIDTH * BUFFER_HEIGHT;
 
 int main() {
+  glfwSetErrorCallback(error_callback);
+
   GLFWwindow *window;
 
   // try to init the library
@@ -78,7 +102,6 @@ int main() {
     glfwTerminate();
     return -1;
   }
-  glfwSetErrorCallback(error_callback);
 
   // make the window the current context
   glfwMakeContextCurrent(window);
@@ -128,7 +151,7 @@ int main() {
   GLuint fullscreen_triangle_vao;
   glGenVertexArrays(1, &fullscreen_triangle_vao);
 
-  const char *vertex_shader =
+  static const char *vertex_shader =
       "\n"
       "#version 330\n"
       "\n"
@@ -142,7 +165,7 @@ int main() {
       "    gl_Position = vec4(2.0 * TexCoord - 1.0, 0.0, 1.0);\n"
       "}\n";
 
-  const char *fragment_shader =
+  static const char *fragment_shader =
       "\n"
       "#version 330\n"
       "\n"
@@ -193,6 +216,8 @@ int main() {
     return -1;
   }
 
+  glUseProgram(shader_id);
+
   // attach the texture to the sampler2D buffer variable in the fragment shader
   GLint frag_buf_location = glGetUniformLocation(shader_id, "buffer");
   glUniform1i(frag_buf_location, 0);
@@ -203,12 +228,36 @@ int main() {
 
   glBindVertexArray(fullscreen_triangle_vao);
 
+  // make alien sprite
+  Sprite alien_sprite;
+  alien_sprite.width = 11;
+  alien_sprite.height = 8;
+  // ..@.....@..
+  // ...@...@...
+  // ..@@@@@@@..
+  // .@@.@@@.@@.
+  // @@@@@@@@@@@
+  // @.@@@@@@@.@
+  // @.@.....@.@
+  // ...@@.@@...
+  alien_sprite.data = new u8[88]{
+      0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
+      0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1,
+      1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0};
+
   // loop until the window should close
   u32 clear_color = rgb_to_u32(0, 128, 0);
 
   while (!glfwWindowShouldClose(window)) {
-    glClear(GL_COLOR_BUFFER_BIT);
+    // glClear(GL_COLOR_BUFFER_BIT);
+    buffer_clear(&buf, clear_color);
+    buffer_draw_sprite(&buf, alien_sprite, 112, 128, rgb_to_u32(128, 0, 0));
 
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buf.width, buf.height, GL_RGBA,
+                    GL_UNSIGNED_INT_8_8_8_8, buf.data);
+
+    glDrawArrays(GL_TRIANGLES, 0, 3);
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
@@ -220,6 +269,7 @@ int main() {
   glDeleteVertexArrays(1, &fullscreen_triangle_vao);
 
   delete[] buf.data;
+  delete[] alien_sprite.data;
 
   return 0;
 }
