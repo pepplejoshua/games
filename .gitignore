@@ -30,7 +30,7 @@
 *.exe
 *.out
 *.app
-.vscode/settings.json
+.vscode/*
 src/.DS_Store
 
 bin/*
