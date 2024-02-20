@@ -284,8 +284,8 @@ int main() {
   // ..@.....@..
   // .@.......@.
   Sprite alien_sprite_1;
-  alien_sprite.width = 11;
-  alien_sprite.height = 8;
+  alien_sprite_1.width = 11;
+  alien_sprite_1.height = 8;
   alien_sprite_1.data = new u8[88]{
       0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1,
       1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1,
@@ -331,19 +331,19 @@ int main() {
                }};
 
   // initialize the 55 aliens to reasonable positions
-  for (size_t yi = 0; yi < 5; ++yi)
+  for (size_t yi = 0; yi < 5; ++yi) {
     for (size_t xi = 0; xi < 11; ++xi) {
       game.aliens[yi * 11 + xi].x = 16 * xi + 20;
       game.aliens[yi * 11 + xi].y = 17 * yi + 128;
     }
+  }
 
   // loop until the window should close
   u32 clear_color = rgb_to_u32(0, 128, 0);
   u32 red = rgb_to_u32(128, 0, 0);
+  int player_move_dir = 1;
   while (!glfwWindowShouldClose(window)) {
-    // glClear(GL_COLOR_BUFFER_BIT);
     buffer_clear(&buf, clear_color);
-    // buffer_draw_sprite(&buf, alien_sprite, 112, 128, rgb_to_u32(128, 0, 0));
 
     // draw aliens
     for (size_t ai = 0; ai < game.num_aliens; ++ai) {
@@ -374,8 +374,20 @@ int main() {
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buf.width, buf.height, GL_RGBA,
                     GL_UNSIGNED_INT_8_8_8_8, buf.data);
 
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glfwSwapBuffers(window);
+
+    if (game.player.x + player_sprite.width + player_move_dir >=
+        game.width - 1) {
+      game.player.x = game.width - player_sprite.width - player_move_dir - 1;
+      player_move_dir *= -1;
+    } else if ((int)game.player.x + player_move_dir <= 0) {
+      game.player.x = 0;
+      player_move_dir *= -1;
+    } else {
+      game.player.x += player_move_dir;
+    }
+
     glfwPollEvents();
   }
 
@@ -385,8 +397,13 @@ int main() {
 
   glDeleteVertexArrays(1, &fullscreen_triangle_vao);
 
-  delete[] buf.data;
   delete[] alien_sprite.data;
+  delete[] alien_sprite_1.data;
+  delete[] alien_animation->frames;
+  delete[] buf.data;
+  delete[] game.aliens;
+
+  delete alien_animation;
 
   return 0;
 }
