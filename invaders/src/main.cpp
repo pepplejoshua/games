@@ -26,6 +26,23 @@ struct Sprite {
   u8 *data;
 };
 
+struct Alien {
+  size_t x, y;
+  u8 type;
+};
+
+struct Player {
+  size_t x, y;
+  size_t life;
+};
+
+struct Game {
+  size_t width, height;
+  size_t num_aliens;
+  Alien *aliens;
+  Player player;
+};
+
 u32 rgb_to_u32(u8 r, u8 g, u8 b) {
   return (r << 24) | (g << 16) | (b << 8) | 255;
 }
@@ -81,6 +98,7 @@ bool validate_program(GLuint program) {
 const size_t BUFFER_WIDTH = 224;
 const size_t BUFFER_HEIGHT = 256;
 const size_t BUFFER_SIZE = BUFFER_WIDTH * BUFFER_HEIGHT;
+const size_t NUM_ALIENS = 55;
 
 int main() {
   glfwSetErrorCallback(error_callback);
@@ -97,7 +115,8 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
   // make a window and set the error callback
-  window = glfwCreateWindow(640, 480, "Space Invaders", NULL, NULL);
+  window = glfwCreateWindow(2 * BUFFER_WIDTH, 2 * BUFFER_HEIGHT,
+                            "Space Invaders", NULL, NULL);
   if (!window) {
     glfwTerminate();
     return -1;
@@ -120,6 +139,7 @@ int main() {
   glGetIntegerv(GL_MINOR_VERSION, &glVersion[1]);
   printf("Using OpenGL: %d.%d\n", glVersion[0], glVersion[1]);
 
+  glfwSwapInterval(1);
   glClearColor(1.0, 0.0, 0.0, 1.0);
 
   // create and clear buffer
@@ -229,9 +249,6 @@ int main() {
   glBindVertexArray(fullscreen_triangle_vao);
 
   // make alien sprite
-  Sprite alien_sprite;
-  alien_sprite.width = 11;
-  alien_sprite.height = 8;
   // ..@.....@..
   // ...@...@...
   // ..@@@@@@@..
@@ -240,19 +257,67 @@ int main() {
   // @.@@@@@@@.@
   // @.@.....@.@
   // ...@@.@@...
+  Sprite alien_sprite;
+  alien_sprite.width = 11;
+  alien_sprite.height = 8;
   alien_sprite.data = new u8[88]{
       0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
       0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0,
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1,
       1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0};
 
+  // .....@.....
+  // ....@@@....
+  // ....@@@....
+  // .@@@@@@@@@.
+  // @@@@@@@@@@@
+  // @@@@@@@@@@@
+  // @@@@@@@@@@@
+  Sprite player_sprite = {
+      .width = 11,
+      .height = 7,
+      .data =
+          new u8[77]{
+              0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0,
+              0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1,
+              1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+              1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          },
+  };
+
+  Game game = {.width = BUFFER_WIDTH,
+               .height = BUFFER_HEIGHT,
+               .num_aliens = NUM_ALIENS,
+               .aliens = new Alien[NUM_ALIENS],
+               .player = {
+                   .x = 112 - 5,
+                   .y = 32,
+                   .life = 3,
+               }};
+
+  // initialize the 55 aliens to reasonable positions
+  for (size_t yi = 0; yi < 5; ++yi)
+    for (size_t xi = 0; xi < 11; ++xi) {
+      game.aliens[yi * 11 + xi].x = 16 * xi + 20;
+      game.aliens[yi * 11 + xi].y = 17 * yi + 128;
+    }
+
   // loop until the window should close
   u32 clear_color = rgb_to_u32(0, 128, 0);
-
+  u32 red = rgb_to_u32(128, 0, 0);
   while (!glfwWindowShouldClose(window)) {
     // glClear(GL_COLOR_BUFFER_BIT);
     buffer_clear(&buf, clear_color);
-    buffer_draw_sprite(&buf, alien_sprite, 112, 128, rgb_to_u32(128, 0, 0));
+    // buffer_draw_sprite(&buf, alien_sprite, 112, 128, rgb_to_u32(128, 0, 0));
+
+    // draw aliens
+    for (size_t ai = 0; ai < game.num_aliens; ++ai) {
+      const Alien &alien = game.aliens[ai];
+      buffer_draw_sprite(&buf, alien_sprite, alien.x, alien.y, red);
+    }
+
+    // draw player
+    buffer_draw_sprite(&buf, player_sprite, game.player.x, game.player.y, red);
 
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buf.width, buf.height, GL_RGBA,
                     GL_UNSIGNED_INT_8_8_8_8, buf.data);
