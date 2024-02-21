@@ -105,10 +105,14 @@ bool validate_program(GLuint program) {
   return true;
 }
 
+void key_callback(GLFWwindow *, int, int, int, int);
+
 const size_t BUFFER_WIDTH = 224;
 const size_t BUFFER_HEIGHT = 256;
 const size_t BUFFER_SIZE = BUFFER_WIDTH * BUFFER_HEIGHT;
 const size_t NUM_ALIENS = 55;
+bool GAME_RUNNING = false;
+int MOVE_DIR = 0;
 
 int main() {
   glfwSetErrorCallback(error_callback);
@@ -131,6 +135,9 @@ int main() {
     glfwTerminate();
     return -1;
   }
+
+  // set callback to handle user input
+  glfwSetKeyCallback(window, key_callback);
 
   // make the window the current context
   glfwMakeContextCurrent(window);
@@ -341,8 +348,8 @@ int main() {
   // loop until the window should close
   u32 clear_color = rgb_to_u32(0, 128, 0);
   u32 red = rgb_to_u32(128, 0, 0);
-  int player_move_dir = 1;
-  while (!glfwWindowShouldClose(window)) {
+  GAME_RUNNING = true;
+  while (!glfwWindowShouldClose(window) && GAME_RUNNING) {
     buffer_clear(&buf, clear_color);
 
     // draw aliens
@@ -377,15 +384,17 @@ int main() {
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glfwSwapBuffers(window);
 
-    if (game.player.x + player_sprite.width + player_move_dir >=
-        game.width - 1) {
-      game.player.x = game.width - player_sprite.width - player_move_dir - 1;
-      player_move_dir *= -1;
-    } else if ((int)game.player.x + player_move_dir <= 0) {
-      game.player.x = 0;
-      player_move_dir *= -1;
-    } else {
-      game.player.x += player_move_dir;
+    int player_move_dir = 2 * MOVE_DIR;
+
+    if (player_move_dir != 0) {
+      if (game.player.x + player_sprite.width + player_move_dir >=
+          game.width - 1) {
+        game.player.x = game.width - player_sprite.width - player_move_dir - 1;
+      } else if ((int)game.player.x + player_move_dir <= 0) {
+        game.player.x = 0;
+      } else {
+        game.player.x += player_move_dir;
+      }
     }
 
     glfwPollEvents();
@@ -407,3 +416,42 @@ int main() {
 
   return 0;
 }
+
+void key_callback(GLFWwindow *window, int key, int scancode, int action,
+                  int mods) {
+  switch (key) {
+  case GLFW_KEY_ESCAPE:
+    if (action == GLFW_PRESS)
+      GAME_RUNNING = false;
+    break;
+  case GLFW_KEY_RIGHT:
+    if (action == GLFW_PRESS)
+      MOVE_DIR += 1;
+    else if (action == GLFW_RELEASE)
+      MOVE_DIR -= 1;
+    break;
+  case GLFW_KEY_LEFT:
+    if (action == GLFW_PRESS)
+      MOVE_DIR -= 1;
+    else if (action == GLFW_RELEASE)
+      MOVE_DIR += 1;
+    break;
+  default:
+    break;
+  }
+}
+
+/*
+questions:
+- what is a sprite?
+- what is a texture?
+- what is a vertex? how can I tell where a vertex is by looking at a sprite? who
+computes where the vertex will be?
+- what is a fragment? since the fragment shader comes after rasterization, what
+is rasterization?
+- seeing as we are using a quad i.e. triangle in our view port, how can I see a
+square?
+- what is in the sample2D buffer used in the fragment shader? Is that a
+rasterized vertex?
+- where does the sampled texture used by the fragment shader come from?
+*/
