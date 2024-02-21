@@ -46,11 +46,20 @@ struct SpriteAnimation {
   Sprite **frames;
 };
 
+struct Bullet {
+  size_t x, y;
+  int dir;
+};
+
+#define GAME_MAX_BULLETS 128
+
 struct Game {
   size_t width, height;
   size_t num_aliens;
+  size_t num_bullets;
   Alien *aliens;
   Player player;
+  Bullet bullets[GAME_MAX_BULLETS];
 };
 
 u32 rgb_to_u32(u8 r, u8 g, u8 b) {
@@ -113,6 +122,7 @@ const size_t BUFFER_SIZE = BUFFER_WIDTH * BUFFER_HEIGHT;
 const size_t NUM_ALIENS = 55;
 bool GAME_RUNNING = false;
 int MOVE_DIR = 0;
+bool FIRE_BUTTON_PRESSED = false;
 
 int main() {
   glfwSetErrorCallback(error_callback);
@@ -327,9 +337,21 @@ int main() {
           },
   };
 
+  // @
+  // @
+  // @
+  Sprite bullet_sprite = {.width = 1,
+                          .height = 3,
+                          .data = new u8[3]{
+                              1,
+                              1,
+                              1,
+                          }};
+
   Game game = {.width = BUFFER_WIDTH,
                .height = BUFFER_HEIGHT,
                .num_aliens = NUM_ALIENS,
+               .num_bullets = 0,
                .aliens = new Alien[NUM_ALIENS],
                .player = {
                    .x = 112 - 5,
@@ -361,6 +383,13 @@ int main() {
       buffer_draw_sprite(&buf, sprite, alien.x, alien.y, red);
     }
 
+    // draw bullets
+    for (size_t bi = 0; bi < game.num_bullets; ++bi) {
+      const Bullet &bullet = game.bullets[bi];
+      const Sprite &sprite = bullet_sprite;
+      buffer_draw_sprite(&buf, sprite, bullet.x, bullet.y, red);
+    }
+
     // draw player
     buffer_draw_sprite(&buf, player_sprite, game.player.x, game.player.y, red);
 
@@ -384,6 +413,21 @@ int main() {
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glfwSwapBuffers(window);
 
+    // update the bullet positions using .dir and remove any projectiles out of
+    // the game area
+    for (size_t bi = 0; bi < game.num_bullets;) {
+      game.bullets[bi].y += game.bullets[bi].dir;
+      if (game.bullets[bi].y >= game.height ||
+          game.bullets[bi].y < bullet_sprite.height) {
+        game.bullets[bi] = game.bullets[game.num_bullets - 1];
+        --game.num_bullets;
+        continue;
+      }
+
+      ++bi;
+    }
+
+    // handle processing Player movement, if any
     int player_move_dir = 2 * MOVE_DIR;
 
     if (player_move_dir != 0) {
@@ -396,6 +440,15 @@ int main() {
         game.player.x += player_move_dir;
       }
     }
+
+    if (FIRE_BUTTON_PRESSED && game.num_bullets < GAME_MAX_BULLETS) {
+      game.bullets[game.num_bullets].x =
+          game.player.x + player_sprite.width / 2;
+      game.bullets[game.num_bullets].y = game.player.y + player_sprite.height;
+      game.bullets[game.num_bullets].dir = 2;
+      ++game.num_bullets;
+    }
+    FIRE_BUTTON_PRESSED = false;
 
     glfwPollEvents();
   }
@@ -419,6 +472,11 @@ int main() {
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action,
                   int mods) {
+  // const char *action_s =
+  //     action == GLFW_PRESS
+  //         ? "<pressed>"
+  //         : (action == GLFW_RELEASE ? "<released>" : "<other>");
+  // printf("MOVE VALUE BEFORE :: %d (%s)\n", MOVE_DIR, action_s);
   switch (key) {
   case GLFW_KEY_ESCAPE:
     if (action == GLFW_PRESS)
@@ -436,9 +494,14 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action,
     else if (action == GLFW_RELEASE)
       MOVE_DIR += 1;
     break;
+  case GLFW_KEY_SPACE:
+    if (action == GLFW_RELEASE)
+      FIRE_BUTTON_PRESSED = true;
+    break;
   default:
     break;
   }
+  printf("MOVE VALUE AFTER :: %d\n", MOVE_DIR);
 }
 
 /*
