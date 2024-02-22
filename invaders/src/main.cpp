@@ -26,6 +26,13 @@ struct Sprite {
   u8 *data;
 };
 
+enum AlienType : u8 {
+  ALIEN_DEAD = 0,
+  ALIEN_TYPE_A = 1,
+  ALIEN_TYPE_B = 2,
+  ALIEN_TYPE_C = 3,
+};
+
 struct Alien {
   size_t x, y;
   u8 type;
@@ -275,6 +282,40 @@ int main() {
 
   glBindVertexArray(fullscreen_triangle_vao);
 
+  // this will hold all the alien sprite (2 sprites per alien to allow
+  // a SpriteAnimation to be made from pairs)
+  Sprite alien_sprites[6];
+
+  // ...@@...
+  // ..@@@@..
+  // .@@@@@@.
+  // @@.@@.@@
+  // @@@@@@@@
+  // .@.@@.@.
+  // @......@
+  // .@....@.
+  alien_sprites[0].width = 8;
+  alien_sprites[0].height = 8;
+  alien_sprites[0].data = new u8[64]{
+      0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1,
+      1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1,
+      1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0};
+
+  // ...@@...
+  // ..@@@@..
+  // .@@@@@@.
+  // @@.@@.@@
+  // @@@@@@@@
+  // ..@..@..
+  // .@.@@.@.
+  // @.@..@.@
+  alien_sprites[1].width = 8;
+  alien_sprites[1].height = 8;
+  alien_sprites[0].data = new u8[64]{
+      0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1,
+      1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0,
+      0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1};
+
   // ..@.....@..
   // ...@...@...
   // ..@@@@@@@..
@@ -283,6 +324,13 @@ int main() {
   // @.@@@@@@@.@
   // @.@.....@.@
   // ...@@.@@...
+  alien_sprites[2].width = 11;
+  alien_sprites[2].height = 8;
+  alien_sprites[2].data = new u8[88]{
+      0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
+      0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1,
+      1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0};
   Sprite alien_sprite;
   alien_sprite.width = 11;
   alien_sprite.height = 8;
@@ -300,6 +348,13 @@ int main() {
   // .@@@@@@@@@.
   // ..@.....@..
   // .@.......@.
+  alien_sprites[3].width = 11;
+  alien_sprites[3].height = 8;
+  alien_sprites[3].data = new u8[88]{
+      0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1,
+      1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+      0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0};
   Sprite alien_sprite_1;
   alien_sprite_1.width = 11;
   alien_sprite_1.height = 8;
@@ -308,6 +363,60 @@ int main() {
       1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1,
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
       0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0};
+
+  // ....@@@@....
+  // .@@@@@@@@@@.
+  // @@@@@@@@@@@@
+  // @@@..@@..@@@
+  // @@@@@@@@@@@@
+  // ...@@..@@...
+  // ..@@.@@.@@..
+  // @@........@@
+  alien_sprites[4].width = 12;
+  alien_sprites[4].height = 8;
+  alien_sprites[4].data = new u8[96]{
+      0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0,
+      0, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1};
+
+  // ....@@@@....
+  // .@@@@@@@@@@.
+  // @@@@@@@@@@@@
+  // @@@..@@..@@@
+  // @@@@@@@@@@@@
+  // ..@@@..@@@..
+  // .@@..@@..@@.
+  // ..@@....@@..
+  alien_sprites[5].width = 12;
+  alien_sprites[5].height = 8;
+  alien_sprites[5].data = new u8[96]{
+      0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0,
+      0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0};
+
+  // .@..@...@..@.
+  // ..@..@.@..@..
+  // ...@.....@...
+  // @@.........@@
+  // ...@.....@...
+  // ..@..@.@..@..
+  // .@..@...@..@.
+  Sprite alien_death_sprite;
+  alien_death_sprite.width = 13;
+  alien_death_sprite.height = 7;
+  alien_death_sprite.data = new u8[91]{
+      0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0,
+      1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0,
+      0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0};
+
+  // create an array to keep track of alien deaths
+  u8 death_counters[NUM_ALIENS];
+  for (size_t i = 0; i < NUM_ALIENS; ++i) {
+    death_counters[i] = 10;
+  }
 
   SpriteAnimation *alien_animation = new SpriteAnimation;
   alien_animation->loop = true;
@@ -360,8 +469,13 @@ int main() {
                }};
 
   // initialize the 55 aliens to reasonable positions
+  // and different types
   for (size_t yi = 0; yi < 5; ++yi) {
     for (size_t xi = 0; xi < 11; ++xi) {
+      Alien &alien = game.aliens[yi * 11 + xi];
+      alien.type = (5 - yi) / 2 + 1;
+
+      const Sprite &sprite = alien_sprites[2 * (alien.type - 1)];
       game.aliens[yi * 11 + xi].x = 16 * xi + 20;
       game.aliens[yi * 11 + xi].y = 17 * yi + 128;
     }
@@ -376,6 +490,10 @@ int main() {
 
     // draw aliens
     for (size_t ai = 0; ai < game.num_aliens; ++ai) {
+      // alien is dead
+      if (!death_counters[ai])
+        continue;
+
       const Alien &alien = game.aliens[ai];
       size_t current_frame =
           alien_animation->time / alien_animation->frame_duration;
@@ -413,8 +531,8 @@ int main() {
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glfwSwapBuffers(window);
 
-    // update the bullet positions using .dir and remove any projectiles out of
-    // the game area
+    // update the bullet positions using .dir and remove any projectiles out
+    // of the game area
     for (size_t bi = 0; bi < game.num_bullets;) {
       game.bullets[bi].y += game.bullets[bi].dir;
       if (game.bullets[bi].y >= game.height ||
@@ -459,9 +577,16 @@ int main() {
 
   glDeleteVertexArrays(1, &fullscreen_triangle_vao);
 
+  // clean up
+  for (size_t i = 0; i < 6; ++i) {
+    delete[] alien_sprites[i].data;
+  }
+  delete[] alien_death_sprite.data;
+
   delete[] alien_sprite.data;
   delete[] alien_sprite_1.data;
   delete[] alien_animation->frames;
+
   delete[] buf.data;
   delete[] game.aliens;
 
@@ -501,19 +626,19 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action,
   default:
     break;
   }
-  printf("MOVE VALUE AFTER :: %d\n", MOVE_DIR);
+  // printf("MOVE VALUE AFTER :: %d\n", MOVE_DIR);
 }
 
 /*
 questions:
 - what is a sprite?
 - what is a texture?
-- what is a vertex? how can I tell where a vertex is by looking at a sprite? who
-computes where the vertex will be?
-- what is a fragment? since the fragment shader comes after rasterization, what
-is rasterization?
-- seeing as we are using a quad i.e. triangle in our view port, how can I see a
-square?
+- what is a vertex? how can I tell where a vertex is by looking at a sprite?
+who computes where the vertex will be?
+- what is a fragment? since the fragment shader comes after rasterization,
+what is rasterization?
+- seeing as we are using a quad i.e. triangle in our view port, how can I see
+a square?
 - what is in the sample2D buffer used in the fragment shader? Is that a
 rasterized vertex?
 - where does the sampled texture used by the fragment shader come from?
