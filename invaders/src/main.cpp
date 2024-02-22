@@ -93,6 +93,15 @@ void buffer_draw_sprite(Buffer *buf, const Sprite &sprite, size_t x, size_t y,
   }
 }
 
+bool sprite_overlap_check(const Sprite &Sp_a, size_t x_a, size_t y_a,
+                          const Sprite &Sp_b, size_t x_b, size_t y_b) {
+  if (x_a < x_b + Sp_b.width && x_a + Sp_a.width > x_b &&
+      y_a < y_b + Sp_b.height && y_a + Sp_a.height > y_b) {
+    return true;
+  }
+  return false;
+}
+
 void validate_shader(GLuint shader, const char *file = 0) {
   static const unsigned int BUFFER_SIZE = 512;
   char buffer[BUFFER_SIZE];
@@ -311,7 +320,7 @@ int main() {
   // @.@..@.@
   alien_sprites[1].width = 8;
   alien_sprites[1].height = 8;
-  alien_sprites[0].data = new u8[64]{
+  alien_sprites[1].data = new u8[64]{
       0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1,
       1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0,
       0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1};
@@ -331,14 +340,6 @@ int main() {
       0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0,
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1,
       1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0};
-  Sprite alien_sprite;
-  alien_sprite.width = 11;
-  alien_sprite.height = 8;
-  alien_sprite.data = new u8[88]{
-      0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
-      0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1,
-      1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0};
 
   // ..@.....@..
   // @..@...@..@
@@ -351,14 +352,6 @@ int main() {
   alien_sprites[3].width = 11;
   alien_sprites[3].height = 8;
   alien_sprites[3].data = new u8[88]{
-      0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1,
-      1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
-      0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0};
-  Sprite alien_sprite_1;
-  alien_sprite_1.width = 11;
-  alien_sprite_1.height = 8;
-  alien_sprite_1.data = new u8[88]{
       0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1,
       1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1,
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
@@ -412,20 +405,16 @@ int main() {
       0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0,
       0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0};
 
-  // create an array to keep track of alien deaths
-  u8 death_counters[NUM_ALIENS];
-  for (size_t i = 0; i < NUM_ALIENS; ++i) {
-    death_counters[i] = 10;
+  SpriteAnimation alien_animations[3];
+  for (size_t i = 0; i < 3; ++i) {
+    alien_animations[i].loop = true;
+    alien_animations[i].num_frames = 2;
+    alien_animations[i].frame_duration = 10;
+    alien_animations[i].time = 0;
+    alien_animations[i].frames = new Sprite *[2];
+    alien_animations[i].frames[0] = &alien_sprites[2 * i];
+    alien_animations[i].frames[1] = &alien_sprites[2 * i + 1];
   }
-
-  SpriteAnimation *alien_animation = new SpriteAnimation;
-  alien_animation->loop = true;
-  alien_animation->num_frames = 2;
-  alien_animation->frame_duration = 10;
-  alien_animation->time = 0;
-  alien_animation->frames = new Sprite *[2];
-  alien_animation->frames[0] = &alien_sprite;
-  alien_animation->frames[1] = &alien_sprite_1;
 
   // .....@.....
   // ....@@@....
@@ -473,18 +462,28 @@ int main() {
   for (size_t yi = 0; yi < 5; ++yi) {
     for (size_t xi = 0; xi < 11; ++xi) {
       Alien &alien = game.aliens[yi * 11 + xi];
-      alien.type = (5 - yi) / 2 + 1;
+      alien.type = ((5 - yi) / 2) + 1;
 
       const Sprite &sprite = alien_sprites[2 * (alien.type - 1)];
-      game.aliens[yi * 11 + xi].x = 16 * xi + 20;
+
+      // determine x position accounting for space needed to show the death
+      game.aliens[yi * 11 + xi].x =
+          16 * xi + 20 + ((alien_death_sprite.width - sprite.width) / 2);
       game.aliens[yi * 11 + xi].y = 17 * yi + 128;
     }
+  }
+
+  // create an array to keep track of alien deaths
+  u8 death_counters[NUM_ALIENS];
+  for (size_t i = 0; i < NUM_ALIENS; ++i) {
+    death_counters[i] = 10;
   }
 
   // loop until the window should close
   u32 clear_color = rgb_to_u32(0, 128, 0);
   u32 red = rgb_to_u32(128, 0, 0);
   GAME_RUNNING = true;
+  int player_move_dir = 0;
   while (!glfwWindowShouldClose(window) && GAME_RUNNING) {
     buffer_clear(&buf, clear_color);
 
@@ -495,10 +494,14 @@ int main() {
         continue;
 
       const Alien &alien = game.aliens[ai];
-      size_t current_frame =
-          alien_animation->time / alien_animation->frame_duration;
-      const Sprite &sprite = *alien_animation->frames[current_frame];
-      buffer_draw_sprite(&buf, sprite, alien.x, alien.y, red);
+      if (alien.type == ALIEN_DEAD) {
+        buffer_draw_sprite(&buf, alien_death_sprite, alien.x, alien.y, red);
+      } else {
+        const SpriteAnimation &anim = alien_animations[alien.type - 1];
+        size_t current_frame = anim.time / anim.frame_duration;
+        const Sprite &sprite = *anim.frames[current_frame];
+        buffer_draw_sprite(&buf, sprite, alien.x, alien.y, red);
+      }
     }
 
     // draw bullets
@@ -511,17 +514,16 @@ int main() {
     // draw player
     buffer_draw_sprite(&buf, player_sprite, game.player.x, game.player.y, red);
 
-    // check animation of alien sprites and if it is still needed
-    // or if it needs to restart the loop
-    ++alien_animation->time;
-    const size_t MAX_ANIMATION_TIME =
-        alien_animation->num_frames * alien_animation->frame_duration;
-    if (alien_animation->time == MAX_ANIMATION_TIME) {
-      if (alien_animation->loop)
-        alien_animation->time = 0;
-      else {
-        delete alien_animation;
-        alien_animation = nullptr;
+    // update and check animations of alien sprites to see if they need to be
+    // restarted or removed
+    for (size_t i = 0; i < 3; ++i) {
+      ++alien_animations[i].time;
+      size_t MAX_ANIMATION_DUR =
+          alien_animations[i].num_frames * alien_animations[i].frame_duration;
+
+      // restart animation
+      if (alien_animations[i].time == MAX_ANIMATION_DUR) {
+        alien_animations[i].time = 0;
       }
     }
 
@@ -531,10 +533,18 @@ int main() {
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glfwSwapBuffers(window);
 
-    // update the bullet positions using .dir and remove any projectiles out
-    // of the game area
+    // update alien states (affects dead aliens but still visible aliens)
+    for (size_t ai = 0; ai < game.num_aliens; ++ai) {
+      const Alien &alien = game.aliens[ai];
+      if (alien.type == ALIEN_DEAD && death_counters[ai]) {
+        --death_counters[ai];
+      }
+    }
+
+    // update the bullet positions using .dir
     for (size_t bi = 0; bi < game.num_bullets;) {
       game.bullets[bi].y += game.bullets[bi].dir;
+      // remove any projectiles outside of the game area
       if (game.bullets[bi].y >= game.height ||
           game.bullets[bi].y < bullet_sprite.height) {
         game.bullets[bi] = game.bullets[game.num_bullets - 1];
@@ -542,11 +552,26 @@ int main() {
         continue;
       }
 
+      // check if any of the bullets have hit an alien
+      for (size_t ai = 0; ai < game.num_aliens; ++ai) {
+        const Alien &alien = game.aliens[ai];
+        if (alien.type == ALIEN_DEAD)
+          continue;
+
+        // since the alien's sprite animates between 2 different sprites,
+        // we will check the current sprite visible on screen for a hit
+        const SpriteAnimation &anim = alien_animations[alien.type - 1];
+        size_t current_frame = anim.time / anim.frame_duration;
+        const Sprite &alien_sprite = *anim.frames[current_frame];
+        bool bullet_overlaps_with_alien = sprite_overlap_check(
+            bullet_sprite, game.bullets[bi].x, game.bullets[bi].y, alien_sprite,
+            alien.x, alien.y);
+      }
       ++bi;
     }
 
     // handle processing Player movement, if any
-    int player_move_dir = 2 * MOVE_DIR;
+    player_move_dir = 2 * MOVE_DIR;
 
     if (player_move_dir != 0) {
       if (game.player.x + player_sprite.width + player_move_dir >=
@@ -583,14 +608,12 @@ int main() {
   }
   delete[] alien_death_sprite.data;
 
-  delete[] alien_sprite.data;
-  delete[] alien_sprite_1.data;
-  delete[] alien_animation->frames;
+  for (size_t i = 0; i < 3; ++i) {
+    delete[] alien_animations[i].frames;
+  }
 
   delete[] buf.data;
   delete[] game.aliens;
-
-  delete alien_animation;
 
   return 0;
 }
