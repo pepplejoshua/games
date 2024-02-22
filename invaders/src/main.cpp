@@ -95,6 +95,11 @@ void buffer_draw_sprite(Buffer *buf, const Sprite &sprite, size_t x, size_t y,
 
 bool sprite_overlap_check(const Sprite &Sp_a, size_t x_a, size_t y_a,
                           const Sprite &Sp_b, size_t x_b, size_t y_b) {
+  // for 2 sprites to be collide, all these have to be true
+  // = B's top right edge > A's x: x_a < x_b + Sp_b.width
+  // = A's top right edge > B's x: x_a + Sp_a.width > x_b
+  // = B's bottom left edge > A's y: y_a < y_b + Sp_b.height
+  // = A's bottom left edge > B's y: y_a + Sp_a.height > y_b
   if (x_a < x_b + Sp_b.width && x_a + Sp_a.width > x_b &&
       y_a < y_b + Sp_b.height && y_a + Sp_a.height > y_b) {
     return true;
@@ -566,6 +571,16 @@ int main() {
         bool bullet_overlaps_with_alien = sprite_overlap_check(
             bullet_sprite, game.bullets[bi].x, game.bullets[bi].y, alien_sprite,
             alien.x, alien.y);
+
+        if (bullet_overlaps_with_alien) {
+          game.aliens[ai].type = ALIEN_DEAD;
+          // hack to recenter death sprite
+          game.aliens[ai].x -=
+              (alien_death_sprite.width - alien_sprite.width) / 2;
+          game.bullets[bi] = game.bullets[game.num_bullets - 1];
+          --game.num_bullets;
+          continue;
+        }
       }
       ++bi;
     }
