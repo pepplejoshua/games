@@ -148,5 +148,214 @@ const size_t BUFFER_SIZE = BUFFER_WIDTH * BUFFER_HEIGHT;
 
 bool GAME_RUNNING = false;
 int MOVE_DIR = 0;
+bool GAME_IS_ON = false;
 
-int main() { return 0; }
+int main() {
+  glfwSetErrorCallback(error_callback);
+
+  GLFWwindow *window;
+
+  if (!glfwInit())
+    return -1;
+
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+
+  // make a window and set the error callback
+  window = glfwCreateWindow(2 * BUFFER_WIDTH, 2 * BUFFER_HEIGHT, "breakout",
+                            NULL, NULL);
+  if (!window) {
+    glfwTerminate();
+    return -1;
+  }
+
+  // set callback to handle user input
+  glfwSetKeyCallback(window, key_callback);
+
+  // make the window the current context
+  glfwMakeContextCurrent(window);
+
+  // init GLEW
+  GLenum err = glewInit();
+  if (err != GLEW_OK) {
+    fprintf(stderr, "Error initializing GLEW.\n");
+    glfwTerminate();
+    return -1;
+  }
+
+  // get open GL versions
+  int glVersion[2] = {-1, 1};
+  glGetIntegerv(GL_MAJOR_VERSION, &glVersion[0]);
+  glGetIntegerv(GL_MINOR_VERSION, &glVersion[1]);
+  printf("Using OpenGL: %d.%d\n", glVersion[0], glVersion[1]);
+
+  glfwSwapInterval(1);
+
+  // create and clear buffer
+  Buffer buf = {.width = BUFFER_WIDTH,
+                .height = BUFFER_HEIGHT,
+                .data = new u32[BUFFER_SIZE]};
+  buffer_clear(&buf, 0);
+
+  // img data is transferred to the gpu using textures
+  // a texture (in terms of vao) is an object holding img data,
+  // and other info about formatting of the data
+
+  // first we create the buffer to hold the texture
+  GLuint buf_texture;
+  glGenTextures(1, &buf_texture);
+
+  // then we specify img format and std parameters about the
+  // behavior of the sampling of the texture
+  glBindTexture(GL_TEXTURE_2D, buf_texture);
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, buf.width, buf.height, 0, GL_RGBA,
+               GL_UNSIGNED_INT_8_8_8_8, buf.data);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  // create VAO to track all appropriate vertex data for rendering
+  GLuint fullscreen_triangle_vao;
+  glGenVertexArrays(1, &fullscreen_triangle_vao);
+
+  static const char *vertex_shader =
+      "\n"
+      "#version 330\n"
+      "\n"
+      "noperspective out vec2 TexCoord;\n"
+      "\n"
+      "void main(void) {\n"
+      "\n"
+      "    TexCoord.x = (gl_VertexID == 2) ? 2.0 : 0.0;\n"
+      "    TexCoord.y = (gl_VertexID == 1) ? 2.0 : 0.0;\n"
+      "    \n"
+      "    gl_Position = vec4(2.0 * TexCoord - 1.0, 0.0, 1.0);\n"
+      "}\n";
+
+  static const char *fragment_shader =
+      "\n"
+      "#version 330\n"
+      "\n"
+      "uniform sampler2D buffer;\n"
+      "noperspective in vec2 TexCoord;\n"
+      "\n"
+      "out vec3 outColor;\n"
+      "\n"
+      "void main(void) {\n"
+      "\n"
+      "    outColor = texture(buffer, TexCoord).rgb;\n"
+      "}\n";
+
+  // compile shader programs to gpu friendly format
+  GLuint shader_id = glCreateProgram();
+
+  // compile vertex shader
+  {
+    GLuint shader_vp = glCreateShader(GL_VERTEX_SHADER);
+
+    glShaderSource(shader_vp, 1, &vertex_shader, 0);
+    glCompileShader(shader_vp);
+    validate_shader(shader_vp, vertex_shader);
+    glAttachShader(shader_id, shader_vp);
+
+    glDeleteShader(shader_vp);
+  }
+
+  // compile fragment shader
+  {
+    GLuint shader_fp = glCreateShader(GL_FRAGMENT_SHADER);
+
+    glShaderSource(shader_fp, 1, &fragment_shader, 0);
+    glCompileShader(shader_fp);
+    validate_shader(shader_fp, fragment_shader);
+    glAttachShader(shader_id, shader_fp);
+
+    glDeleteShader(shader_fp);
+  }
+
+  glLinkProgram(shader_id);
+
+  if (!validate_program(shader_id)) {
+    fprintf(stderr, "Error while validating shader.\n");
+    glfwTerminate();
+    glDeleteVertexArrays(1, &fullscreen_triangle_vao);
+    delete[] buf.data;
+    return -1;
+  }
+
+  glUseProgram(shader_id);
+
+  // attach the texture to the sampler2D buffer variable in the fragment shader
+  GLint frag_buf_location = glGetUniformLocation(shader_id, "buffer");
+  glUniform1i(frag_buf_location, 0);
+
+  // open gl settings
+  glDisable(GL_DEPTH_TEST);
+  glActiveTexture(GL_TEXTURE0);
+
+  glBindVertexArray(fullscreen_triangle_vao);
+
+  u32 black_clear_color = rgb_to_u32(0, 0, 0);
+  u32 red = rgb_to_u32(128, 0, 0);
+  u32 green = rgb_to_u32(0, 128, 0);
+  u32 blue = rgb_to_u32(0, 0, 128);
+  u32 white = rgb_to_u32(255, 255, 255);
+  u32 yellow = rgb_to_u32(255, 255, 0);
+  u32 cyan = rgb_to_u32(0, 255, 255);
+  u32 magenta = rgb_to_u32(255, 0, 255);
+
+  GAME_RUNNING = true;
+  int player_move_dir = 0;
+  size_t score = 0;
+  while (!glfwWindowShouldClose(window) && GAME_RUNNING) {
+    buffer_clear(&buf, black_clear_color);
+
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buf.width, buf.height, GL_RGBA,
+                    GL_UNSIGNED_INT_8_8_8_8, buf.data);
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glfwSwapBuffers(window);
+
+    glfwPollEvents();
+  }
+
+  return 0;
+}
+
+void key_callback(GLFWwindow *window, int key, int scancode, int action,
+                  int mods) {
+  // const char *action_s =
+  //     action == GLFW_PRESS
+  //         ? "<pressed>"
+  //         : (action == GLFW_RELEASE ? "<released>" : "<other>");
+  // printf("MOVE VALUE BEFORE :: %d (%s)\n", MOVE_DIR, action_s);
+  switch (key) {
+  case GLFW_KEY_ESCAPE:
+    if (action == GLFW_PRESS)
+      GAME_RUNNING = false;
+    break;
+  case GLFW_KEY_RIGHT:
+    if (action == GLFW_PRESS)
+      MOVE_DIR += 1;
+    else if (action == GLFW_RELEASE)
+      MOVE_DIR -= 1;
+    break;
+  case GLFW_KEY_LEFT:
+    if (action == GLFW_PRESS)
+      MOVE_DIR -= 1;
+    else if (action == GLFW_RELEASE)
+      MOVE_DIR += 1;
+    break;
+  case GLFW_KEY_SPACE:
+    if (action == GLFW_RELEASE)
+      GAME_IS_ON = true;
+    break;
+  default:
+    break;
+  }
+  // printf("MOVE VALUE AFTER :: %d\n", MOVE_DIR);
+}

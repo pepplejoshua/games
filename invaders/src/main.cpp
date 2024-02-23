@@ -234,7 +234,6 @@ int main() {
   printf("Using OpenGL: %d.%d\n", glVersion[0], glVersion[1]);
 
   glfwSwapInterval(1);
-  glClearColor(1.0, 0.0, 0.0, 1.0);
 
   // create and clear buffer
   Buffer buf = {.width = BUFFER_WIDTH,
