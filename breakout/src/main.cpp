@@ -27,6 +27,20 @@ struct Sprite {
   u8 *data;
 };
 
+struct vec2 {
+  usize x, y;
+};
+
+struct Player {
+  vec2 loc;
+  usize turns = 3;
+};
+
+struct Ball {
+  vec2 loc;
+  usize speed = 1;
+};
+
 enum BrickScore : u8 {
   YELLOW = 1,
   GREEN = 3,
@@ -160,7 +174,7 @@ bool validate_program(GLuint program) {
 void key_callback(GLFWwindow *, int, int, int, int);
 
 const usize BUFFER_WIDTH = 224;
-const usize BUFFER_HEIGHT = 256;
+const usize BUFFER_HEIGHT = 200;
 const usize BUFFER_SIZE = BUFFER_WIDTH * BUFFER_HEIGHT;
 
 bool GAME_RUNNING = false;
@@ -321,22 +335,38 @@ int main() {
   // @@@@@@@@@@@@@@@@
   // @@@@@@@@@@@@@@@@
   // @@@@@@@@@@@@@@@@
-  Sprite brick_s;
-  brick_s.width = 16;
-  brick_s.height = 4;
-  brick_s.data = new u8[64]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+  Sprite brick;
+  brick.width = 16;
+  brick.height = 4;
+  brick.data = new u8[64]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+
+  // @@@@
+  // @@@@
+  Sprite ball_s;
+  ball_s.width = 4;
+  ball_s.height = 4;
+  ball_s.data = new u8[16]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+
+  // @@@@@@@@@@@@@@@@
+  // @@@@@@@@@@@@@@@@
+  Sprite player_s;
+  player_s.width = 16;
+  player_s.height = 2;
+  player_s.data = new u8[32]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
   u32 black_clear_color = rgb_to_u32(0, 0, 0);
-  u32 red = rgb_to_u32(128, 0, 0);
+  u32 red = rgb_to_u32(200, 0, 0);
   u32 green = rgb_to_u32(0, 128, 0);
   u32 blue = rgb_to_u32(0, 0, 128);
   u32 white = rgb_to_u32(255, 255, 255);
   u32 yellow = rgb_to_u32(255, 255, 0);
   u32 cyan = rgb_to_u32(0, 255, 255);
   u32 magenta = rgb_to_u32(255, 0, 255);
+  u32 orange = rgb_to_u32(255, 165, 0);
 
   GAME_RUNNING = true;
   int player_move_dir = 0;
@@ -345,8 +375,16 @@ int main() {
     buffer_clear(&buf, black_clear_color);
 
     // draw some blocks to test
-    buffer_draw_sprite(&buf, brick_s, 4,
-                       BUFFER_HEIGHT - 2 * brick_s.height - 12, red);
+    buffer_draw_sprite(&buf, brick, 4, BUFFER_HEIGHT - 2 * brick.height - 12,
+                       red);
+
+    // draw ball sprite
+    buffer_draw_sprite(&buf, ball_s, BUFFER_WIDTH / 2 - (ball_s.width / 2),
+                       BUFFER_HEIGHT / 2 - 12, orange);
+
+    // draw player sprite
+    buffer_draw_sprite(&buf, player_s, BUFFER_WIDTH / 2 - (player_s.width / 2),
+                       BUFFER_HEIGHT / 2 - 12 - ball_s.height, green);
 
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buf.width, buf.height, GL_RGBA,
                     GL_UNSIGNED_INT_8_8_8_8, buf.data);
@@ -357,7 +395,8 @@ int main() {
     glfwPollEvents();
   }
 
-  delete[] brick_s.data;
+  delete[] brick.data;
+  delete[] ball_s.data;
 
   return 0;
 }
