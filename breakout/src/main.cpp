@@ -7,6 +7,7 @@
 
 typedef uint32_t u32;
 typedef uint8_t u8;
+typedef size_t usize;
 
 void error_callback(int error, const char *desc) {
   fprintf(stderr, "Error: %s\n", desc);
@@ -15,15 +16,31 @@ void error_callback(int error, const char *desc) {
 // we will store the pixels in u32 sized integers but we will only use
 // the leftmost 24 bits (8 bits for r-g-b)
 struct Buffer {
-  size_t width, height;
+  usize width, height;
   u32 *data;
 };
 
 // this struct will hold a bitmapped sprite which will be drawn to screen
 // with a specified color. each pixel is 8 bits wide
 struct Sprite {
-  size_t width, height;
+  usize width, height;
   u8 *data;
+};
+
+enum BrickScore : u8 {
+  YELLOW = 1,
+  GREEN = 3,
+  ORANGE = 5,
+  RED = 7,
+};
+
+struct Brick {
+  usize x, y;
+  // yellow: 1 point
+  // green: 3 points
+  // orange: 5 points
+  // red: 7 points
+  BrickScore value;
 };
 
 struct Game {};
@@ -33,17 +50,17 @@ u32 rgb_to_u32(u8 r, u8 g, u8 b) {
 }
 
 void buffer_clear(Buffer *buf, u32 color) {
-  for (size_t i = 0; i < buf->width * buf->height; ++i) {
+  for (usize i = 0; i < buf->width * buf->height; ++i) {
     buf->data[i] = color;
   }
 }
 
-void buffer_draw_sprite(Buffer *buf, const Sprite &sprite, size_t x, size_t y,
+void buffer_draw_sprite(Buffer *buf, const Sprite &sprite, usize x, usize y,
                         u32 color) {
-  for (size_t xi = 0; xi < sprite.width; ++xi) {
-    for (size_t yi = 0; yi < sprite.height; ++yi) {
-      size_t sy = sprite.height - 1 + y - yi;
-      size_t sx = x + xi;
+  for (usize xi = 0; xi < sprite.width; ++xi) {
+    for (usize yi = 0; yi < sprite.height; ++yi) {
+      usize sy = sprite.height - 1 + y - yi;
+      usize sx = x + xi;
       if (sprite.data[yi * sprite.width + xi] && sy < buf->height &&
           sx < buf->width) {
         buf->data[sy * buf->width + sx] = color;
@@ -55,10 +72,10 @@ void buffer_draw_sprite(Buffer *buf, const Sprite &sprite, size_t x, size_t y,
 // this draws text from the spritesheet (which contains space, upper case
 // alphabets, numbers and some special characters).
 void buffer_draw_text(Buffer *buf, const Sprite &text_spritesheet,
-                      const char *text, size_t x, size_t y, u32 color) {
-  size_t xp = x;
+                      const char *text, usize x, usize y, u32 color) {
+  usize xp = x;
   // which is 5 * 7
-  size_t stride = text_spritesheet.width * text_spritesheet.height;
+  usize stride = text_spritesheet.width * text_spritesheet.height;
   Sprite sprite = text_spritesheet;
   for (const char *charp = text; *charp != '\0'; ++charp) {
     // get the index for the character in our array
@@ -78,17 +95,17 @@ void buffer_draw_text(Buffer *buf, const Sprite &text_spritesheet,
 }
 
 void buffer_draw_number(Buffer *buf, const Sprite &number_spritesheet,
-                        size_t number, size_t x, size_t y, uint32_t color) {
+                        usize number, usize x, usize y, uint32_t color) {
   u8 digits[64];
-  size_t num_digits = 0;
-  size_t cur_num = number;
+  usize num_digits = 0;
+  usize cur_num = number;
   do {
     digits[num_digits++] = cur_num % 10;
     cur_num /= 10;
   } while (cur_num > 0);
 
-  size_t xp = x;
-  size_t stride = number_spritesheet.height * number_spritesheet.width;
+  usize xp = x;
+  usize stride = number_spritesheet.height * number_spritesheet.width;
   Sprite sprite = number_spritesheet;
   for (int i = num_digits - 1; i >= 0; --i) {
     u8 digit = digits[i];
@@ -98,8 +115,8 @@ void buffer_draw_number(Buffer *buf, const Sprite &number_spritesheet,
   }
 }
 
-bool sprite_overlap_check(const Sprite &Sp_a, size_t x_a, size_t y_a,
-                          const Sprite &Sp_b, size_t x_b, size_t y_b) {
+bool sprite_overlap_check(const Sprite &Sp_a, usize x_a, usize y_a,
+                          const Sprite &Sp_b, usize x_b, usize y_b) {
   // for 2 sprites to be collide, all these have to be true
   // = B's top right edge > A's x: x_a < x_b + Sp_b.width
   // = A's top right edge > B's x: x_a + Sp_a.width > x_b
@@ -142,9 +159,9 @@ bool validate_program(GLuint program) {
 
 void key_callback(GLFWwindow *, int, int, int, int);
 
-const size_t BUFFER_WIDTH = 224;
-const size_t BUFFER_HEIGHT = 256;
-const size_t BUFFER_SIZE = BUFFER_WIDTH * BUFFER_HEIGHT;
+const usize BUFFER_WIDTH = 224;
+const usize BUFFER_HEIGHT = 256;
+const usize BUFFER_SIZE = BUFFER_WIDTH * BUFFER_HEIGHT;
 
 bool GAME_RUNNING = false;
 int MOVE_DIR = 0;
@@ -299,6 +316,19 @@ int main() {
 
   glBindVertexArray(fullscreen_triangle_vao);
 
+  // make generic sprite for the different blocks
+  // @@@@@@@@@@@@@@@@
+  // @@@@@@@@@@@@@@@@
+  // @@@@@@@@@@@@@@@@
+  // @@@@@@@@@@@@@@@@
+  Sprite brick_s;
+  brick_s.width = 16;
+  brick_s.height = 4;
+  brick_s.data = new u8[64]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+
   u32 black_clear_color = rgb_to_u32(0, 0, 0);
   u32 red = rgb_to_u32(128, 0, 0);
   u32 green = rgb_to_u32(0, 128, 0);
@@ -310,9 +340,13 @@ int main() {
 
   GAME_RUNNING = true;
   int player_move_dir = 0;
-  size_t score = 0;
+  usize score = 0;
   while (!glfwWindowShouldClose(window) && GAME_RUNNING) {
     buffer_clear(&buf, black_clear_color);
+
+    // draw some blocks to test
+    buffer_draw_sprite(&buf, brick_s, 4,
+                       BUFFER_HEIGHT - 2 * brick_s.height - 12, red);
 
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buf.width, buf.height, GL_RGBA,
                     GL_UNSIGNED_INT_8_8_8_8, buf.data);
@@ -322,6 +356,8 @@ int main() {
 
     glfwPollEvents();
   }
+
+  delete[] brick_s.data;
 
   return 0;
 }
