@@ -352,20 +352,25 @@ int main() {
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   };
 
-  // @@@@
-  // @@@@
+  // @@@
+  // @@@
   Sprite ball_s;
-  ball_s.width = 4;
-  ball_s.height = 4;
-  ball_s.data = new u8[16]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+  ball_s.width = 3;
+  ball_s.height = 3;
+  ball_s.data = new u8[9]{
+      1, 1, 1, 1, 1, 1, 1, 1, 1,
+  };
 
-  // @@@@@@@@@@@@@@@@
-  // @@@@@@@@@@@@@@@@
+  // @@@@@@@@@@@@@@
+  // @@@@@@@@@@@@@@
+  // @@@@@@@@@@@@@@
   Sprite player_s;
-  player_s.width = 16;
-  player_s.height = 2;
-  player_s.data = new u8[32]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+  player_s.width = 14;
+  player_s.height = 3;
+  player_s.data = new u8[42]{
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  };
 
   u32 black_clear_color = rgb_to_u32(0, 0, 0);
   u32 red = rgb_to_u32(200, 0, 0);
@@ -380,12 +385,15 @@ int main() {
   Game game = {
       .num_bricks = NUM_BRICKS,
       .bricks = new Brick[NUM_BRICKS],
-      .player = {.x = BUFFER_WIDTH / 2 - (player_s.width / 2),
-                 .y = BUFFER_HEIGHT / 2 - 12 - ball_s.height},
+      .player =
+          {
+              .x = BUFFER_WIDTH / 2 - (player_s.width / 2),
+              .y = 25 - player_s.height,
+          },
       .ball =
           {
               .x = BUFFER_WIDTH / 2 - (ball_s.width / 2),
-              .y = BUFFER_HEIGHT / 2 - 12,
+              .y = game.player.y + ball_s.height,
               .vel =
                   {// it will move straight up since the y axis is inverted
                    .x = 0,
@@ -436,7 +444,7 @@ int main() {
     buffer_draw_sprite(&buf, ball_s, game.ball.x, game.ball.y, orange);
 
     // draw player sprite
-    buffer_draw_sprite(&buf, player_s, game.player.y, game.player.x, green);
+    buffer_draw_sprite(&buf, player_s, game.player.x, game.player.y, green);
 
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buf.width, buf.height, GL_RGBA,
                     GL_UNSIGNED_INT_8_8_8_8, buf.data);
