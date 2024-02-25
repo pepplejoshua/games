@@ -27,18 +27,16 @@ struct Sprite {
   u8 *data;
 };
 
-struct vec2 {
-  usize x, y;
-};
-
 struct Player {
-  vec2 loc;
+  usize x, y;
   usize turns = 3;
 };
 
 struct Ball {
-  vec2 loc;
-  usize speed = 1;
+  usize x, y;
+  struct {
+    usize x, y;
+  } vel;
 };
 
 enum BrickScore : u8 {
@@ -55,9 +53,16 @@ struct Brick {
   // orange: 5 points
   // red: 7 points
   BrickScore value;
+  u32 color;
 };
 
-struct Game {};
+struct Game {
+  usize num_bricks;
+  Brick *bricks;
+  Player player;
+  Ball ball;
+  usize score = 0;
+};
 
 u32 rgb_to_u32(u8 r, u8 g, u8 b) {
   return (r << 24) | (g << 16) | (b << 8) | 255;
@@ -173,9 +178,12 @@ bool validate_program(GLuint program) {
 
 void key_callback(GLFWwindow *, int, int, int, int);
 
-const usize BUFFER_WIDTH = 224;
+const usize BUFFER_WIDTH = 226;
 const usize BUFFER_HEIGHT = 200;
 const usize BUFFER_SIZE = BUFFER_WIDTH * BUFFER_HEIGHT;
+const usize ROW_OF_BRICKS = 8;  // 8
+const usize COL_OF_BRICKS = 14; // 14
+const usize NUM_BRICKS = ROW_OF_BRICKS * COL_OF_BRICKS;
 
 bool GAME_RUNNING = false;
 int MOVE_DIR = 0;
@@ -331,17 +339,18 @@ int main() {
   glBindVertexArray(fullscreen_triangle_vao);
 
   // make generic sprite for the different blocks
-  // @@@@@@@@@@@@@@@@
-  // @@@@@@@@@@@@@@@@
-  // @@@@@@@@@@@@@@@@
-  // @@@@@@@@@@@@@@@@
+  // @@@@@@@@@@@@@@
+  // @@@@@@@@@@@@@@
+  // @@@@@@@@@@@@@@
+  // @@@@@@@@@@@@@@
   Sprite brick;
-  brick.width = 16;
+  brick.width = 14;
   brick.height = 4;
-  brick.data = new u8[64]{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+  brick.data = new u8[56]{
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  };
 
   // @@@@
   // @@@@
@@ -361,30 +370,73 @@ int main() {
   u32 black_clear_color = rgb_to_u32(0, 0, 0);
   u32 red = rgb_to_u32(200, 0, 0);
   u32 green = rgb_to_u32(0, 128, 0);
-  u32 blue = rgb_to_u32(0, 0, 128);
-  u32 white = rgb_to_u32(255, 255, 255);
   u32 yellow = rgb_to_u32(255, 255, 0);
-  u32 cyan = rgb_to_u32(0, 255, 255);
-  u32 magenta = rgb_to_u32(255, 0, 255);
   u32 orange = rgb_to_u32(255, 165, 0);
 
   GAME_RUNNING = true;
   int player_move_dir = 0;
   usize score = 0;
+
+  Game game = {
+      .num_bricks = NUM_BRICKS,
+      .bricks = new Brick[NUM_BRICKS],
+      .player = {.x = BUFFER_WIDTH / 2 - (player_s.width / 2),
+                 .y = BUFFER_HEIGHT / 2 - 12 - ball_s.height},
+      .ball =
+          {
+              .x = BUFFER_WIDTH / 2 - (ball_s.width / 2),
+              .y = BUFFER_HEIGHT / 2 - 12,
+              .vel =
+                  {// it will move straight up since the y axis is inverted
+                   .x = 0,
+                   .y = 1},
+          },
+  };
+
+  // starting brick arrangement: 16 x 8
+  // initialize the bricks to this arrangement
+  // Red: Row 1
+  // Orange: Row 2
+  // Green: Row 3
+  // Yellow: Row 4
+  for (usize yi = 0; yi < ROW_OF_BRICKS; ++yi) {
+    for (usize xi = 0; xi < COL_OF_BRICKS; ++xi) {
+      Brick &bricki = game.bricks[yi * COL_OF_BRICKS + xi];
+      // 16 ensures 16 pixels between each brick
+      // 5 ensures 5 pixels from the left edge of the screen
+      // 8 ensures 8 pixels between each brick horizontally
+      // bricki.x = 16 * xi + 5 + (4 * xi);
+      bricki.x = 16 * xi +
+                 2; // Corrected calculation for consistent horizontal spacing
+      // 10 ensures 10 pixels between each brick vertically
+      bricki.y = 8 * yi + 130;
+
+      if (yi == 0 || yi == 1) {
+        bricki.color = red;
+      } else if (yi == 2 || yi == 3) {
+        bricki.color = orange;
+      } else if (yi == 4 || yi == 5) {
+        bricki.color = green;
+      } else if (yi == 6 || yi == 7) {
+        bricki.color = yellow;
+      }
+    }
+  }
+
   while (!glfwWindowShouldClose(window) && GAME_RUNNING) {
     buffer_clear(&buf, black_clear_color);
 
     // draw some blocks to test
-    buffer_draw_sprite(&buf, brick, 4, BUFFER_HEIGHT - 2 * brick.height - 12,
-                       red);
+    for (usize i = 0; i < game.num_bricks; ++i) {
+      buffer_draw_sprite(&buf, brick, game.bricks[i].x, game.bricks[i].y,
+                         game.bricks[i].color);
+    }
 
     // draw ball sprite
-    buffer_draw_sprite(&buf, ball_s, BUFFER_WIDTH / 2 - (ball_s.width / 2),
-                       BUFFER_HEIGHT / 2 - 12, orange);
+    buffer_draw_sprite(&buf, ball_s, game.ball.x, game.ball.y, orange);
 
     // draw player sprite
-    buffer_draw_sprite(&buf, player_s, BUFFER_WIDTH / 2 - (player_s.width / 2),
-                       BUFFER_HEIGHT / 2 - 12 - ball_s.height, green);
+    buffer_draw_sprite(&buf, player_s, game.player.y, game.player.x, green);
 
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buf.width, buf.height, GL_RGBA,
                     GL_UNSIGNED_INT_8_8_8_8, buf.data);
@@ -395,8 +447,16 @@ int main() {
     glfwPollEvents();
   }
 
+  // clean up
+  glfwDestroyWindow(window);
+  glfwTerminate();
+
+  glDeleteVertexArrays(1, &fullscreen_triangle_vao);
+
+  delete[] game.bricks;
   delete[] brick.data;
   delete[] ball_s.data;
+  delete[] player_s.data;
 
   return 0;
 }

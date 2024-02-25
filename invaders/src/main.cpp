@@ -622,9 +622,8 @@ int main() {
       const Sprite &sprite = alien_sprites[2 * (alien.type - 1)];
 
       // determine x position accounting for space needed to show the death
-      game.aliens[yi * 11 + xi].x =
-          16 * xi + 20 + ((alien_death_sprite.width - sprite.width) / 2);
-      game.aliens[yi * 11 + xi].y = 17 * yi + 128;
+      alien.x = 16 * xi + 20 + ((alien_death_sprite.width - sprite.width) / 2);
+      alien.y = 17 * yi + 128;
     }
   }
 
